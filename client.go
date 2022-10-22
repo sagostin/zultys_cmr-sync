@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+// originally from https://github.com/leonelquinteros/hubspot/blob/master/client.go
+
 // ClientConfig object used for client creation
 type ClientConfig struct {
 	APIHost     string
@@ -147,6 +149,9 @@ func (c Client) Request(method, endpoint string, data, response interface{}) err
 
 	// Get data?
 	if response != nil {
+		//TODO DEBUG
+		//log.Infof("%s", body)
+
 		err = json.Unmarshal(body, &response)
 		if err != nil {
 			return fmt.Errorf("hubspot.Client.Request(): json.Unmarshal(): %v \n%s", err, string(body))

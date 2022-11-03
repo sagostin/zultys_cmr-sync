@@ -1,8 +1,6 @@
 package hubspot
 
 import (
-	"encoding/json"
-	log "github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -22,23 +20,27 @@ type ContactProperties struct {
 	Company          string    `json:"company"`
 	CreateDate       time.Time `json:"createdate"`
 	Email            string    `json:"email"`
-	Firstname        string    `json:"firstname"`
+	FirstName        string    `json:"firstname"`
+	LastName         string    `json:"lastname"`
+	FullName         string    `json:"full_name"`
 	LastModifiedDate time.Time `json:"lastmodifieddate"`
-	Lastname         string    `json:"lastname"`
 	Phone            string    `json:"phone"`
 	Website          string    `json:"website"`
+	SearchablePhone  string    `json:"hs_calculated_phone_number"`
+}
+
+type ContactResult struct {
+	Id         string            `json:"id"`
+	Properties ContactProperties `json:"properties"`
+	CreatedAt  time.Time         `json:"createdAt"`
+	UpdatedAt  time.Time         `json:"updatedAt"`
+	Archived   bool              `json:"archived"`
 }
 
 type ContactsSearchResponse struct {
-	Total   int `json:"total"`
-	Results []struct {
-		Id         string            `json:"id"`
-		Properties ContactProperties `json:"properties"`
-		CreatedAt  time.Time         `json:"createdAt"`
-		UpdatedAt  time.Time         `json:"updatedAt"`
-		Archived   bool              `json:"archived"`
-	} `json:"results"`
-	Paging struct {
+	Total   int             `json:"total"`
+	Results []ContactResult `json:"results"`
+	Paging  struct {
 		Next struct {
 			After string `json:"after"`
 			Link  string `json:"link"`
@@ -46,29 +48,35 @@ type ContactsSearchResponse struct {
 	} `json:"paging"`
 }
 
+func (c Contacts) Get() (ContactsSearchResponse, error) {
+	filterQuery := FilterQuery{
+		FilterGroups: []FilterGroup{},
+	}
+
+	resp := ContactsSearchResponse{}
+
+	err := c.Client.Request("POST", "/crm/v3/objects/contacts", &filterQuery, &resp)
+	return resp, err
+}
+
 func (c Contacts) SearchByPhone(phoneNumber string) (ContactsSearchResponse, error) {
 	filterQuery := FilterQuery{
 		FilterGroups: []FilterGroup{},
+		Properties:   []string{"hs_calculated_phone_number", "phone", "company", "full_name", "firstname", "lastname", "website"},
 	}
 
 	fGroup := FilterGroup{}
 	fGroup.Filters = []Filter{}
 	fGroup.Filters = append(fGroup.Filters, Filter{
 		Value:        phoneNumber,
-		PropertyName: "phone",
+		PropertyName: "hs_calculated_phone_number",
 		Operator:     "EQ",
 	})
 
 	filterQuery.FilterGroups = append(filterQuery.FilterGroups, fGroup)
 
-	marshal, err := json.Marshal(filterQuery)
-	if err != nil {
-		log.Fatalf("%s", "Error parsing json.")
-	}
-	log.Infof("%s", marshal)
-
 	resp := ContactsSearchResponse{}
 
-	err = c.Client.Request("POST", "/crm/v3/objects/contacts/search", &filterQuery, &resp)
+	err := c.Client.Request("POST", "/crm/v3/objects/contacts/search", &filterQuery, &resp)
 	return resp, err
 }

@@ -19,8 +19,8 @@ type FilterGroup struct {
 }
 
 type Filter struct {
-	Value        interface{}   `json:"value,omitempty"`
-	Values       []interface{} `json:"values,omitempty"`
-	PropertyName string        `json:"propertyName,omitempty"`
-	Operator     string        `json:"operator,omitempty"`
+	Value        string   `json:"value,omitempty"`
+	Values       []string `json:"values,omitempty"`
+	PropertyName string   `json:"propertyName,omitempty"`
+	Operator     string   `json:"operator,omitempty"`
 }

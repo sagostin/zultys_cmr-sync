@@ -18,17 +18,21 @@ func (c Client) Calls() Calls {
 }
 
 type CallProperties struct {
-	CreateDate         time.Time `json:"createdate,omitempty"`
-	HsCallBody         string    `json:"hs_call_body,omitempty"`
-	HsCallDuration     string    `json:"hs_call_duration,omitempty"`
-	HsCallFromNumber   string    `json:"hs_call_from_number,omitempty"`
-	HsCallRecordingUrl string    `json:"hs_call_recording_url,omitempty"`
-	HsCallStatus       string    `json:"hs_call_status,omitempty"`
-	HsCallTitle        string    `json:"hs_call_title,omitempty"`
-	HsCallToNumber     string    `json:"hs_call_to_number,omitempty"`
-	HsLastModifiedDate time.Time `json:"hs_lastmodifieddate,omitempty"`
-	HsTimestamp        time.Time `json:"hs_timestamp,omitempty"`
-	HubspotOwnerId     string    `json:"hubspot_owner_id,omitempty"`
+	CreateDate               time.Time `json:"createdate,omitempty"`
+	HsCallBody               string    `json:"hs_call_body,omitempty"`
+	HsCallDuration           string    `json:"hs_call_duration,omitempty"`
+	HsCallFromNumber         string    `json:"hs_call_from_number,omitempty"`
+	HsCallRecordingUrl       string    `json:"hs_call_recording_url,omitempty"`
+	HsCallStatus             string    `json:"hs_call_status,omitempty"`
+	HsCallTitle              string    `json:"hs_call_title,omitempty"`
+	HsCallDirection          string    `json:"hs_call_direction"`
+	HsCallToNumber           string    `json:"hs_call_to_number,omitempty"`
+	HsLastModifiedDate       time.Time `json:"hs_lastmodifieddate,omitempty"`
+	HsTimestamp              time.Time `json:"hs_timestamp,omitempty"`
+	HubspotOwnerId           string    `json:"hubspot_owner_id,omitempty"`
+	HsAttachmentIds          string    `json:"hs_attachment_ids,omitempty"`
+	HsCallCalleeObjectId     string    `json:"hs_call_callee_object_id,omitempty"`
+	HsCallCalleeObjectTypeId string    `json:"hs_call_callee_object_type_id,omitempty"`
 }
 
 type MultiCallProperties struct {
@@ -37,20 +41,26 @@ type MultiCallProperties struct {
 	HsObjectId         string    `json:"hs_object_id"`
 }
 
+type CallResult struct {
+	Id         string         `json:"id"`
+	Properties CallProperties `json:"properties"`
+	CreatedAt  time.Time      `json:"createdAt"`
+	UpdatedAt  time.Time      `json:"updatedAt"`
+	Archived   bool           `json:"archived"`
+}
+
 type CallsResponse struct {
-	Total   int `json:"total"`
-	Results []struct {
-		Id         string         `json:"id"`
-		Properties CallProperties `json:"properties"`
-		CreatedAt  time.Time      `json:"createdAt"`
-		UpdatedAt  time.Time      `json:"updatedAt"`
-		Archived   bool           `json:"archived"`
-	} `json:"results"`
-	Paging struct {
+	Total   int          `json:"total"`
+	Results []CallResult `json:"results"`
+	Paging  struct {
 		Next struct {
 			After string `json:"after"`
 		} `json:"next"`
 	} `json:"paging"`
+}
+
+type CallAssociateResponse struct {
+	Properties CallProperties `json:"properties"`
 }
 
 func (c Calls) GetCalls() (CallsResponse, error) {
@@ -61,94 +71,142 @@ func (c Calls) GetCalls() (CallsResponse, error) {
 	return resp, err
 }
 
-func (c Calls) GetAllCalls(t time.Time) ([]CallProperties, error) {
+func (c Calls) GetRecentCalls(duration time.Duration) ([]CallResult, error) {
+	var afterCallX = 0
+	var itemLimit = 25
 
-	var n, l int
-	n = 0
-	l = 0
+	var notFinished = true
+	var props []CallResult
 
-	var inc int
-	inc = 25
+	for notFinished {
+		filterQuery := FilterQuery{
+			Properties: []string{"hs_call_body", "hs_call_duration",
+				"hs_call_from_number", "hs_call_recording_url",
+				"hs_call_status", "hs_call_title", "hs_lastmodifieddate",
+				"hs_timestamp", "hubspot_owner_id", "hs_call_to_number",
+				"hs_attachment_ids", "hs_call_callee_object_id",
+				"hs_call_direction",
+				"hs_call_callee_object_type_id"},
+			Sorts: []FilterSort{{
+				PropertyName: "hs_timestamp",
+				Direction:    "DESCENDING",
+			}},
+			Limit: itemLimit,
+			After: afterCallX,
+		}
 
-	filterQuery := FilterQuery{
-		Properties: []string{"hs_call_from_number", "hs_createdate", "hs_call_callee_object_type_id", "hs_call_callee_object_id"},
-		Sorts: []FilterSort{{
-			PropertyName: "hs_lastmodifieddate",
-			Direction:    "DESCENDING",
-		}},
-		Limit: inc,
-		After: n,
-	}
-
-	var props []CallProperties
-
-	resp := CallsResponse{}
-	err := c.Client.Request("POST", "/crm/v3/objects/calls/search", &filterQuery, &resp)
-	if err != nil {
-		log.Error(err)
-	}
-	l = resp.Total
-	n = inc
-	for _, r := range resp.Results {
-		props = append(props, r.Properties)
-	}
-
-	log.Infof("Total Calls: %v", resp.Total)
-
-	for n < l {
-		resp = CallsResponse{}
-		err = c.Client.Request("POST", "/crm/v3/objects/calls/search", &filterQuery, &resp)
+		var resp = CallsResponse{}
+		err := c.Client.Request("POST", "/crm/v3/objects/calls/search", &filterQuery, &resp)
 		if err != nil {
 			log.Error(err)
+			return nil, err
 		}
-		n += inc
-		for _, r := range resp.Results {
-			props = append(props, r.Properties)
+		for n, r := range resp.Results {
+
+			log.Errorf("%s", r.Properties.HsTimestamp)
+			if n == (itemLimit-1) && r.Properties.HsTimestamp.Before(time.Now().Add(-duration)) {
+				//log.Infof("%s", time.Now().Add(-duration))
+				notFinished = false
+				break
+			} else if n == (itemLimit-1) && r.Properties.HsTimestamp.After(time.Now().Add(-duration)) /* && resp.Total > afterCallX */ {
+				props = append(props, r)
+				afterCallX = afterCallX + itemLimit
+				log.Warnf("%v", afterCallX)
+				continue
+			} else if r.Properties.HsTimestamp.After(time.Now().Add(-duration)) {
+				props = append(props, r)
+				continue
+			}
 		}
+
+		if !notFinished {
+			break
+		}
+
+		time.Sleep(2 * time.Second)
 	}
 
-	/*fGroup := FilterGroup{}
-	fGroup.Filters = []Filter{}
-	fGroup.Filters = append(fGroup.Filters, Filter{
-		Value:        t.Format(time.RFC3339),
-		PropertyName: "createdate",
-		Operator:     "GTE",
-	})
+	return props, nil
 
-	filterQuery.FilterGroups = append(filterQuery.FilterGroups, fGroup)
-	marshal, err := json.Marshal(filterQuery)
-	if err != nil {
-		log.Fatalf("%s", "Error parsing json.")
+}
+
+func (c Calls) GetAllCalls() ([]CallResult, error) {
+	var afterCallX = 0
+	var itemLimit = 25
+
+	var notFinished = true
+	var props []CallResult
+
+	for notFinished {
+		filterQuery := FilterQuery{
+			Properties: []string{"hs_call_body", "hs_call_duration",
+				"hs_call_from_number", "hs_call_recording_url",
+				"hs_call_status", "hs_call_title", "hs_lastmodifieddate",
+				"hs_timestamp", "hubspot_owner_id", "hs_call_to_number",
+				"hs_attachment_ids", "hs_call_callee_object_id",
+				"hs_call_direction",
+				"hs_call_callee_object_type_id"},
+			Sorts: []FilterSort{{
+				PropertyName: "hs_timestamp",
+				Direction:    "DESCENDING",
+			}},
+			Limit: itemLimit,
+			After: afterCallX,
+		}
+
+		var resp = CallsResponse{}
+		err := c.Client.Request("POST", "/crm/v3/objects/calls/search", &filterQuery, &resp)
+		if err != nil {
+			log.Error(err)
+			return nil, err
+		}
+		for n, r := range resp.Results {
+			log.Errorf("%s", r.Properties.HsTimestamp)
+			if n == (itemLimit-1) && (resp.Total > afterCallX+itemLimit) {
+				afterCallX = afterCallX + itemLimit
+				log.Warnf("%v", afterCallX)
+				continue
+			}
+			props = append(props, r)
+			if resp.Total < afterCallX+n {
+				notFinished = false
+				break
+			}
+			continue
+		}
+
+		if !notFinished {
+			break
+		}
+
+		time.Sleep(2 * time.Second)
 	}
-	log.Infof("%s", marshal)*/
 
-	//GET /crm/v3/objects/calls
-	return props, err
+	return props, nil
+
 }
 
 func (c Calls) GetCall(objId string) (CallProperties, error) {
-	/*filterQuery := FilterQuery{
-		Properties: []string{"hs_call_from_number", "hs_call_title"},
-	}
-
-	fGroup := FilterGroup{}
-	fGroup.Filters = []Filter{}
-	fGroup.Filters = append(fGroup.Filters, Filter{
-		Value:        objId,
-		PropertyName: "hs_object_id",
-		Operator:     "EQ",
-	})
-
-	filterQuery.FilterGroups = append(filterQuery.FilterGroups, fGroup)
-
-	marshal, err := json.Marshal(filterQuery)
-	if err != nil {
-		log.Fatalf("%s", "Error parsing json.")
-	}
-	log.Infof("%s", marshal)*/
-
 	resp := CallProperties{}
 
 	err := c.Client.Request("GET", "/crm/v3/objects/calls/"+objId, nil, &resp)
 	return resp, err
+}
+
+func (c Calls) AssociateCallContact(callResult CallResult, contactResult ContactResult, label int) error {
+	resp := CallAssociateResponse{}
+
+	var assProps []AssociationProps
+	assProps = append(assProps, AssociationProps{
+		AssociationTypeId:   label,
+		AssociationCategory: "HUBSPOT_DEFINED",
+	})
+
+	//log.Infof("%s", "/crm/v4/objects/calls/"+callResult.Id+"/associations/contact/"+contactResult.Id)
+
+	err := c.Request("PUT", "/crm/v4/objects/calls/"+callResult.Id+"/associations/contact/"+contactResult.Id, &assProps, &resp)
+	if err != nil {
+		return err
+	}
+	return nil
 }

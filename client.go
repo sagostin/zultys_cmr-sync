@@ -152,9 +152,11 @@ func (c Client) Request(method, endpoint string, data, response interface{}) err
 		//TODO DEBUG
 		//log.Infof("%s", body)
 
-		err = json.Unmarshal(body, &response)
-		if err != nil {
-			return fmt.Errorf("hubspot.Client.Request(): json.Unmarshal(): %v \n%s", err, string(body))
+		if len(body) > 0 {
+			err = json.Unmarshal(body, &response)
+			if err != nil {
+				return fmt.Errorf("hubspot.Client.Request(): json.Unmarshal(): %v \n%s", err, string(body))
+			}
 		}
 	}
 

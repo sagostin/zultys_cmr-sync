@@ -167,8 +167,9 @@ func (c Calls) GetAllCalls() ([]CallResult, error) {
 				log.Warnf("%v", afterCallX)
 				continue
 			}
+			log.Warnf("Position: %s , Total Pos: %s , Total Calls: %s", n, afterCallX+n, resp.Total)
 			props = append(props, r)
-			if resp.Total < afterCallX+n {
+			if resp.Total == afterCallX+n+1 {
 				notFinished = false
 				break
 			}

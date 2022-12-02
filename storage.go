@@ -33,6 +33,7 @@ func LoadAppStorage(configPath string) (*AppStorage, error) {
 	file, err := os.ReadFile(configPath)
 	if err != nil {
 		log.Error(err)
+		setup(configPath)
 		return nil, err
 	}
 

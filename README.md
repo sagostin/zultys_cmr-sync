@@ -12,7 +12,6 @@
    Including the `--recent` flag will only pull recent calls, if no calls have been recently processed, it will grab all calls
 2. You may ignore the `--recent `flag to process all calls, every time added
 
-
 ### Installing (Linux)
 
 1. Copy the binary file & storage.json or make a storage.json

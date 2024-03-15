@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	ftpserverlib "github.com/fclairamb/ftpserverlib"
 	log "github.com/sirupsen/logrus"
 )
@@ -26,12 +27,16 @@ import (
 */
 
 func main() {
+	configPath := flag.String("config", "./config.json", "config file path")
+	flag.Parse()
+	config := loadConfig(*configPath)
+
 	ch := make(chan string)
 
-	driver := &CustomDriver{
-		Username:    "user",
-		Password:    "pass",
-		ListenAddr:  "0.0.0.0:2121",
+	driver := &CustomFtpDriver{
+		Username:    config.FtpUsername,
+		Password:    config.FtpPassword,
+		ListenAddr:  config.ListenAddr,
 		CsvDataChan: ch,
 	}
 
@@ -49,7 +54,7 @@ func main() {
 
 	for {
 		t := <-driver.CsvDataChan
-
+		// todo process the lines wether it's from the smdr or ftp upload method
 		log.Warn(t)
 	}
 }

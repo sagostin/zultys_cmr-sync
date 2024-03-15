@@ -42,22 +42,6 @@ func main() {
 
 	c := hubspot.NewClient(cfg)
 
-	/*testCall := hubspot.CallProperties{
-		HsTimestamp:       time.Now(),
-		HsCallDirection:   "INBOUND",
-		HsCallDisposition: "9d9162e7-6cf3-4944-bf63-4dff82258764",
-		HsCallDuration:    "666",
-		HsCallFromNumber:  "2506665555",
-		HsCallStatus:      "BUSY",
-		HsCallToNumber:    "123456789",
-	}
-
-	err := c.Calls().CreateCall(testCall)
-	if err != nil {
-		log.Error(err)
-		return
-	}*/
-
 	owners, err := c.Owners().GetOwners()
 	if err != nil {
 		log.Error(err)
@@ -130,7 +114,9 @@ func main() {
 				owner = FindOwnerByName(ownerFile, d.User.FirstName, d.User.LastName)
 				if owner == nil {
 					log.Error("could not find owner by first and last name")
-					continue
+
+					// create empty owner
+					owner = &hubspot.Owner{}
 				}
 			}
 

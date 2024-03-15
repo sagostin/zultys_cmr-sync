@@ -1,10 +1,13 @@
 {
   "mx_username": "Administrator",
   "mx_password": "zultys",
+  "mx_addr": "zultys.example.com",
   "listen_addr": "0.0.0.0:92000",
   "mode": "smdr",
   "ftp_username": "zultys_cmr-sync",
   "ftp_password": "P@ssw0rd",
   "cmr_type": "hubspot",
-  "cmr_apikey": "apikey_here"
+  "cmr_apikey": "apikey_here",
+  "zultys_users_file": "./zultys_users.json",
+  "crm_users_file": "./crm_users.json"
 }

@@ -27,7 +27,7 @@ const INTERNAL CallDirection = "internal"
 type CallEntry struct {
 	Time      time.Time     `json:"time"`
 	Direction CallDirection `json:"direction,omitempty"`
-	Name      string
+	User      ZultysUser
 	Extension string
 	Duration  time.Duration
 	DialPlan  string
@@ -35,27 +35,29 @@ type CallEntry struct {
 	Callee    string
 }
 
-func processData(content DataContent) ([]CallEntry, error) {
+func processData(content DataContent, config Config) ([]CallEntry, error) {
 	if content.Type == DataTypeFTP {
-		data, err := processFtpData(content)
+		data, err := processFtpData(content, config)
 		if err != nil {
 			return data, err
 		}
-
-		for _, d := range data {
-			log.Infof("%s", d)
-		}
+		return data, nil
 	} else if content.Type == DataTypeSMDR {
 		// todo handle smdr data format?
 	}
 	return nil, nil
 }
 
-func processFtpData(content DataContent) ([]CallEntry, error) {
+func processFtpData(content DataContent, config Config) ([]CallEntry, error) {
 	var calls []CallEntry
 
 	if strings.Contains(content.FilePath, "Calls By Extension") {
 		lines := strings.Split(content.Content, "\n")
+
+		file, err := LoadUsersFromFile(config.ZultysUsersFile)
+		if err != nil {
+			log.Errorf("could not find user? %s", err)
+		}
 
 		for _, line := range lines {
 			line = strings.ReplaceAll(line, "\r", "")
@@ -115,10 +117,16 @@ func processFtpData(content DataContent) ([]CallEntry, error) {
 				callee = values[0]
 			}
 
+			user := FindEntryByExtension(file, values[0])
+			if user == nil {
+				log.Error("no user found")
+				user = &ZultysUser{}
+			}
+
 			entry := CallEntry{
 				Time:      dateTime,
 				Direction: direction,
-				Name:      "PLACEHOLDER", // todo fetch name from zultys api?? we need to cache this somewhere
+				User:      *user, // todo fetch name from zultys api?? we need to cache this somewhere
 				Extension: values[0],
 				Duration:  duration,
 				DialPlan:  dialplan,

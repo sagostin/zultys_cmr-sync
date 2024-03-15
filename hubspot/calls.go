@@ -18,7 +18,6 @@ func (c Client) Calls() Calls {
 }
 
 type CallProperties struct {
-	CreateDate               time.Time `json:"createdate,omitempty"`
 	HsCallBody               string    `json:"hs_call_body,omitempty"`
 	HsCallDuration           string    `json:"hs_call_duration,omitempty"`
 	HsCallFromNumber         string    `json:"hs_call_from_number,omitempty"`
@@ -33,6 +32,7 @@ type CallProperties struct {
 	HsAttachmentIds          string    `json:"hs_attachment_ids,omitempty"`
 	HsCallCalleeObjectId     string    `json:"hs_call_callee_object_id,omitempty"`
 	HsCallCalleeObjectTypeId string    `json:"hs_call_callee_object_type_id,omitempty"`
+	HsCallDisposition        string    `json:"hs_call_disposition"`
 }
 
 type MultiCallProperties struct {
@@ -71,7 +71,17 @@ func (c Calls) GetCalls() (CallsResponse, error) {
 	return resp, err
 }
 
-func (c Calls) GetRecentCalls(duration time.Duration) ([]CallResult, error) {
+func (c Calls) CreateCall(properties CallProperties) error {
+	err := c.Client.Request("POST", "/crm/v3/objects/calls", CallAssociateResponse{Properties: properties}, nil)
+	if err != nil {
+		log.Error("error creating call record in hubspot")
+		return err
+	}
+
+	return nil
+}
+
+/*func (c Calls) GetRecentCalls(duration time.Duration) ([]CallResult, error) {
 	var afterCallX = 0
 	var itemLimit = 25
 
@@ -108,7 +118,7 @@ func (c Calls) GetRecentCalls(duration time.Duration) ([]CallResult, error) {
 				//log.Infof("%s", time.Now().Add(-duration))
 				notFinished = false
 				break
-			} else if n == (itemLimit-1) && r.Properties.HsTimestamp.After(time.Now().Add(-duration)) /* && resp.Total > afterCallX */ {
+			} else if n == (itemLimit-1) && r.Properties.HsTimestamp.After(time.Now().Add(-duration)) /* && resp.Total > afterCallX  {
 				props = append(props, r)
 				afterCallX = afterCallX + itemLimit
 				log.Warnf("%v", afterCallX)
@@ -128,7 +138,7 @@ func (c Calls) GetRecentCalls(duration time.Duration) ([]CallResult, error) {
 
 	return props, nil
 
-}
+}*/
 
 func (c Calls) GetAllCalls() ([]CallResult, error) {
 	var afterCallX = 0

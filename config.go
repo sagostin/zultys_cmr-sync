@@ -18,6 +18,7 @@ type Config struct {
 	CrmAPIKey       string `json:"crm_apikey"`
 	ZultysUsersFile string `json:"zultys_users_file"`
 	CrmUsersFile    string `json:"crm_users_file"`
+	TimestampRegion string `json:"timestamp_region"`
 }
 
 func loadConfig(configFilePath string) Config {

@@ -95,14 +95,19 @@ func processFtpData(content DataContent, config Config) ([]CallEntry, error) {
 			// Combine the date and time strings
 			dateTimeStr := fmt.Sprintf("%s %s", values[1], values[2])
 
+			location, err := time.LoadLocation(config.TimestampRegion)
+			if err != nil {
+				log.Fatalf("Error loading location: %v\n", err)
+			}
+
 			// Parse the combined date and time string into a time.Time object
-			dateTime, err := time.ParseInLocation(dateTimeLayout, dateTimeStr, time.Local)
+			dateTime, err := time.ParseInLocation(dateTimeLayout, dateTimeStr, location)
 			if err != nil {
 				log.Errorf("Error parsing date and time: %v\n", err)
 			}
 
 			// todo fix this time conversion
-			dateTime = dateTime.Add(-time.Hour * 2)
+			// dateTime = dateTime.Add(-time.Hour * 2)
 
 			durationSep := strings.Split(values[3], ":")
 			duration, err := time.ParseDuration(durationSep[0] + "h" + durationSep[1] + "m" + durationSep[2] + "s")

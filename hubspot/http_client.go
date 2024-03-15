@@ -161,7 +161,7 @@ func (c Client) Request(method, endpoint string, data, response interface{}) err
 	}
 
 	// Return HTTP errors
-	if resp.StatusCode != 200 && resp.StatusCode != 204 {
+	if resp.StatusCode != 200 && resp.StatusCode != 204 && resp.StatusCode != 201 {
 		return fmt.Errorf("HubSpot API error: %d - %s \n%s", resp.StatusCode, resp.Status, string(body))
 	}
 

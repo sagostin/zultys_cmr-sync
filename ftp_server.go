@@ -18,10 +18,10 @@ var MemFs = afero.NewMemMapFs()
 // CustomFtpDriver implements the ftpserverlib.MainDriver interface.
 type CustomFtpDriver struct {
 	// No additional fields needed for this simple example.
-	Username    string
-	Password    string
-	ListenAddr  string
-	CsvDataChan chan string
+	Username   string
+	Password   string
+	ListenAddr string
+	DataChan   chan DataContent
 }
 
 func (d *CustomFtpDriver) GetTLSConfig() (*tls.Config, error) {
@@ -97,7 +97,11 @@ func (f *CustomFtpFile) Close() error {
 	if strings.Contains(content, ",") && strings.HasSuffix(f.path, ".csv") {
 		// Process the CSV content here.
 		fmt.Printf("Processing CSV content from path %s", f.path)
-		f.CsvDataChan <- content
+		f.DataChan <- DataContent{
+			FilePath: f.path,
+			Type:     DataTypeFTP,
+			Content:  content,
+		}
 		log.Info("sending content to chan")
 		// todo output file to channel for processing?????
 	} else {

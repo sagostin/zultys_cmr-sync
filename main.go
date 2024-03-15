@@ -31,13 +31,13 @@ func main() {
 	flag.Parse()
 	config := loadConfig(*configPath)
 
-	ch := make(chan string)
+	ch := make(chan DataContent)
 
 	driver := &CustomFtpDriver{
-		Username:    config.FtpUsername,
-		Password:    config.FtpPassword,
-		ListenAddr:  config.ListenAddr,
-		CsvDataChan: ch,
+		Username:   config.FtpUsername,
+		Password:   config.FtpPassword,
+		ListenAddr: config.ListenAddr,
+		DataChan:   ch,
 	}
 
 	// Instantiate the FTP server using our custom driver
@@ -53,8 +53,11 @@ func main() {
 	}()
 
 	for {
-		t := <-driver.CsvDataChan
+		t := <-driver.DataChan
 		// todo process the lines wether it's from the smdr or ftp upload method
-		log.Warn(t)
+		_, err := processData(t)
+		if err != nil {
+			log.Error(err)
+		}
 	}
 }

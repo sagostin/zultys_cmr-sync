@@ -4,5 +4,6 @@
 *.dll
 *.so
 *.dylib
+config.json
 
 storage-2.json

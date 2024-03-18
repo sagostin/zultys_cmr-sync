@@ -73,6 +73,13 @@ func processFtpData(content DataContent, config Config) ([]CallEntry, error) {
 			oldestTimestamp = timestmp
 		}*/
 
+		// Load previously processed timestamps
+		extensionTimestamps, err := LoadTimestampsFromFile(config.TimestampFile)
+		if err != nil {
+			log.Errorf("unable to get timestamps from file, assuming new: %v", err)
+			extensionTimestamps = make(ExtensionTimestamps)
+		}
+
 		for _, line := range lines {
 			line = strings.ReplaceAll(line, "\r", "")
 			if line == "" || line == "\r" {
@@ -115,20 +122,30 @@ func processFtpData(content DataContent, config Config) ([]CallEntry, error) {
 			}
 
 			// Parse the combined date and time string into a time.Time object
-			dateTime, err := time.ParseInLocation(dateTimeLayout, dateTimeStr, location)
+			callTime, err := time.ParseInLocation(dateTimeLayout, dateTimeStr, location)
 			if err != nil {
 				log.Errorf("Error parsing date and time: %v\n", err)
 			}
 
+			extension := values[0]
+
+			// Check if the call is newer than the last processed for this extension
+			lastProcessed, exists := extensionTimestamps[extension]
+			if exists && callTime.Unix() <= lastProcessed {
+				// This call has already been processed, skip it
+				log.Warn("skipping call, due to being already processed?")
+				continue
+			}
+
 			// keep track of oldest processed timestamp
-			/*if oldestTimestamp.IsZero() || oldestTimestamp.Unix() < dateTime.Unix() {
-				oldestTimestamp = dateTime
-			} else if oldestTimestamp.Unix() > dateTime.Unix() {
+			/*if oldestTimestamp.IsZero() || oldestTimestamp.Unix() < callTime.Unix() {
+				oldestTimestamp = callTime
+			} else if oldestTimestamp.Unix() > callTime.Unix() {
 				log.Info("time has already passed")
 				continue
 			}*/
 			// todo fix this time conversion
-			// dateTime = dateTime.Add(-time.Hour * 2)
+			// callTime = callTime.Add(-time.Hour * 2)
 
 			durationSep := strings.Split(values[3], ":")
 			duration, err := time.ParseDuration(durationSep[0] + "h" + durationSep[1] + "m" + durationSep[2] + "s")
@@ -153,7 +170,7 @@ func processFtpData(content DataContent, config Config) ([]CallEntry, error) {
 			}
 
 			entry := CallEntry{
-				Time:      dateTime,
+				Time:      callTime,
 				Direction: direction,
 				User:      *user, // todo fetch name from zultys api?? we need to cache this somewhere
 				Extension: values[0],
@@ -164,6 +181,7 @@ func processFtpData(content DataContent, config Config) ([]CallEntry, error) {
 			}
 
 			calls = append(calls, entry)
+			extensionTimestamps[extension] = callTime.Unix()
 			// todo process the actual lines?
 		}
 
@@ -172,6 +190,12 @@ func processFtpData(content DataContent, config Config) ([]CallEntry, error) {
 			log.Error(err)
 			return nil, err
 		}*/
+
+		err = SaveTimestampsToFile(config.TimestampFile, extensionTimestamps)
+		if err != nil {
+			log.Errorf("Error saving updated timestamps: %v", err)
+			return nil, err
+		}
 	}
 
 	return calls, nil

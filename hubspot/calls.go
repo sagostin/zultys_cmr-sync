@@ -1,6 +1,7 @@
 package hubspot
 
 import (
+	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"time"
 )
@@ -71,14 +72,16 @@ func (c Calls) GetCalls() (CallsResponse, error) {
 	return resp, err
 }
 
-func (c Calls) CreateCall(properties CallProperties) error {
-	err := c.Client.Request("POST", "/crm/v3/objects/calls", CallAssociateResponse{Properties: properties}, nil)
+func (c Calls) CreateCall(properties CallProperties) (*CallResult, error) {
+	var call CallResult
+
+	err := c.Client.Request("POST", "/crm/v3/objects/calls", CallAssociateResponse{Properties: properties}, &call)
 	if err != nil {
 		log.Error("error creating call record in hubspot")
-		return err
+		return nil, err
 	}
 
-	return nil
+	return &call, nil
 }
 
 /*func (c Calls) GetRecentCalls(duration time.Duration) ([]CallResult, error) {
@@ -155,7 +158,7 @@ func (c Calls) GetAllCalls() ([]CallResult, error) {
 				"hs_timestamp", "hubspot_owner_id", "hs_call_to_number",
 				"hs_attachment_ids", "hs_call_callee_object_id",
 				"hs_call_direction",
-				"hs_call_callee_object_type_id"},
+				"hs_call_callee_object_type_id", "hs_calculated_phone_number"},
 			Sorts: []FilterSort{{
 				PropertyName: "hs_timestamp",
 				Direction:    "DESCENDING",
@@ -164,8 +167,15 @@ func (c Calls) GetAllCalls() ([]CallResult, error) {
 			After: afterCallX,
 		}
 
+		marshal, err := json.Marshal(filterQuery)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Warn(string(marshal))
+
 		var resp = CallsResponse{}
-		err := c.Client.Request("POST", "/crm/v3/objects/calls/search", &filterQuery, &resp)
+		err = c.Client.Request("POST", "/crm/v3/objects/calls/search", &filterQuery, &resp)
 		if err != nil {
 			log.Error(err)
 			return nil, err
@@ -197,11 +207,29 @@ func (c Calls) GetAllCalls() ([]CallResult, error) {
 
 }
 
-func (c Calls) GetCall(objId string) (CallProperties, error) {
-	resp := CallProperties{}
+func (c Calls) GetCall(objId string) (CallResult, error) {
+	resp := CallResult{}
 
 	err := c.Client.Request("GET", "/crm/v3/objects/calls/"+objId, nil, &resp)
 	return resp, err
+}
+
+func (c Calls) AssociateCallCompany(callResult CallResult, companyID string, label int) error {
+	resp := CallAssociateResponse{}
+
+	var assProps []AssociationProps
+	assProps = append(assProps, AssociationProps{
+		AssociationTypeId:   label,
+		AssociationCategory: "HUBSPOT_DEFINED",
+	})
+
+	//log.Infof("%s", "/crm/v4/objects/calls/"+callResult.Id+"/associations/contact/"+contactResult.Id)
+
+	err := c.Request("PUT", "/crm/v4/objects/calls/"+callResult.Id+"/associations/company/"+companyID, &assProps, &resp)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c Calls) AssociateCallContact(callResult CallResult, contactResult ContactResult, label int) error {

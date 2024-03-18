@@ -19,6 +19,7 @@ type Config struct {
 	ZultysUsersFile string `json:"zultys_users_file"`
 	CrmUsersFile    string `json:"crm_users_file"`
 	TimestampRegion string `json:"timestamp_region"`
+	TimestampFile   string `json:"timestamp_file"`
 }
 
 func loadConfig(configFilePath string) Config {

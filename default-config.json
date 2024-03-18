@@ -10,5 +10,6 @@
   "cmr_apikey": "apikey_here",
   "zultys_users_file": "./zultys_users.json",
   "crm_users_file": "./crm_users.json",
-  "timestamp_region": "America/Chicago"
+  "timestamp_region": "America/Chicago",
+  "timestamp_file": "./timestamp.json"
 }

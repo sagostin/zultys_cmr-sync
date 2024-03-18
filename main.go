@@ -6,6 +6,7 @@ import (
 	ftpserverlib "github.com/fclairamb/ftpserverlib"
 	log "github.com/sirupsen/logrus"
 	"hubspot-call_contact/hubspot"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -117,10 +118,13 @@ func main() {
 
 					// create empty owner
 					owner = &hubspot.Owner{}
+					//continue
 				}
 			}
 
 			log.Infof("found owner %s %s", owner.Email, owner.Id)
+
+			// todo associate the call with companies & contacts??
 
 			testCall := hubspot.CallProperties{
 				HsTimestamp:       d.Time,
@@ -142,12 +146,61 @@ func main() {
 
 			println(string(marshal))
 
-			err = c.Calls().CreateCall(testCall)
+			callResult, err := c.Calls().CreateCall(testCall)
 			if err != nil {
 				log.Error(err)
 				continue
 			}
-			// todo create call?? eventually link it to contact as well if one exists...
+
+			/*_, err = c.Calls().GetAllCalls()
+			if err != nil {
+				return
+			}*/
+
+			/*call, err := c.Calls().GetCall(callResult.Id)
+			if err != nil {
+				log.Error(err)
+			}*/
+
+			var phoneLookupNum string
+			if d.Direction == OUTBOUND {
+				phoneLookupNum = d.Callee
+			} else if d.Direction == INBOUND {
+				phoneLookupNum = d.Caller
+			}
+
+			match10Digit, _ := regexp.MatchString("^(\\d{10})$", phoneLookupNum)
+			match11Digit, _ := regexp.MatchString("^(1\\d{10})$", phoneLookupNum)
+			if match10Digit {
+				phoneLookupNum = "+1" + phoneLookupNum
+			} else if match11Digit {
+				phoneLookupNum = "+" + phoneLookupNum
+			}
+
+			companies, err := c.Companies().SearchByPhone(phoneLookupNum)
+			if err != nil {
+				log.Error(err)
+			}
+
+			for _, companyP := range companies.Results {
+				err = c.Calls().AssociateCallCompany(*callResult, companyP.Id, 182)
+				if err != nil {
+					log.Warn(err)
+				}
+			}
+
+			phoneContact, err := c.Contacts().SearchByPhone(phoneLookupNum)
+			if err != nil {
+				log.Error(err)
+			}
+
+			for _, contactP := range phoneContact.Results {
+				err = c.Calls().AssociateCallContact(*callResult, contactP, 194)
+				if err != nil {
+					log.Warn(err)
+				}
+				// todo create call?? eventually link it to contact as well if one exists...
+			}
 		}
 	}
 }

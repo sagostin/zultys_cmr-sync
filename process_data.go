@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
 	"strings"
 	"time"
 )
@@ -59,6 +61,18 @@ func processFtpData(content DataContent, config Config) ([]CallEntry, error) {
 			log.Errorf("could not find user? %s", err)
 		}
 
+		/*oldestTimestamp := time.Time{}
+		// get timestamp
+		timestmp, err := GetTimestampFromFile(config.TimestampFile)
+		// if fails to load, skip and mark oldest as empty, otherwise
+		if err != nil {
+			log.Error("unable to get timestamp from file, saving blank to file?")
+		}
+
+		if !timestmp.IsZero() {
+			oldestTimestamp = timestmp
+		}*/
+
 		for _, line := range lines {
 			line = strings.ReplaceAll(line, "\r", "")
 			if line == "" || line == "\r" {
@@ -106,6 +120,13 @@ func processFtpData(content DataContent, config Config) ([]CallEntry, error) {
 				log.Errorf("Error parsing date and time: %v\n", err)
 			}
 
+			// keep track of oldest processed timestamp
+			/*if oldestTimestamp.IsZero() || oldestTimestamp.Unix() < dateTime.Unix() {
+				oldestTimestamp = dateTime
+			} else if oldestTimestamp.Unix() > dateTime.Unix() {
+				log.Info("time has already passed")
+				continue
+			}*/
 			// todo fix this time conversion
 			// dateTime = dateTime.Add(-time.Hour * 2)
 
@@ -145,7 +166,40 @@ func processFtpData(content DataContent, config Config) ([]CallEntry, error) {
 			calls = append(calls, entry)
 			// todo process the actual lines?
 		}
+
+		/*err = SaveTimestampToFile(config.TimestampFile, oldestTimestamp)
+		if err != nil {
+			log.Error(err)
+			return nil, err
+		}*/
 	}
 
 	return calls, nil
 }
+
+// LoadTimestampsFromFile loads the timestamps for each extension from a JSON file.
+func LoadTimestampsFromFile(filename string) (ExtensionTimestamps, error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	var timestamps ExtensionTimestamps
+	err = json.Unmarshal(data, &timestamps)
+	if err != nil {
+		return nil, err
+	}
+	return timestamps, nil
+}
+
+// SaveTimestampsToFile saves the timestamps for each extension to a JSON file.
+func SaveTimestampsToFile(filename string, timestamps ExtensionTimestamps) error {
+	jsonData, err := json.Marshal(timestamps)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(filename, jsonData, 0644)
+}
+
+type ExtensionTimestamps map[string]int64 // extension -> timestamp
+
+var extensionTimestamps ExtensionTimestamps

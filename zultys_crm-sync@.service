@@ -1,0 +1,11 @@
+[Unit]
+Description=Zultys CRM Sync Service - %i
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/zultys_crm-sync/zultys_crm-sync -config=/opt/crm_sync/%i/config.json
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

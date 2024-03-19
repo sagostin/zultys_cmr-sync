@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	ftpserverlib "github.com/fclairamb/ftpserverlib"
 	"github.com/sagostin/zultys_crm-sync/hubspot"
 	log "github.com/sirupsen/logrus"
@@ -34,8 +35,9 @@ import (
 func main() {
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
-		configPath = "./config.json"
+		configPath = *flag.String("config", "./config.json", "config file path")
 	}
+	flag.Parse()
 	config := loadConfig(configPath)
 
 	cfg := hubspot.NewClientConfig()

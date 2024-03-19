@@ -33,11 +33,24 @@ import (
 */
 
 func main() {
-	configPath := os.Getenv("CONFIG_PATH")
-	if configPath == "" {
-		configPath = *flag.String("config", "./config.json", "config file path")
-	}
+	// Define the command-line flag
+	configPathFlag := flag.String("config", "./config.json", "path to config file")
 	flag.Parse()
+
+	// Define the environment variable key
+	envVar := "CONFIG_PATH"
+
+	// Check if the environment variable is set
+	configPathEnv, envSet := os.LookupEnv(envVar)
+
+	// Use the environment variable if it's set, otherwise use the flag value
+	configPath := *configPathFlag
+	if envSet {
+		configPath = configPathEnv
+	}
+
+	// Use configPath as needed
+	log.Infof("Using configuration file at: %s\n", configPath)
 	config := loadConfig(configPath)
 
 	cfg := hubspot.NewClientConfig()

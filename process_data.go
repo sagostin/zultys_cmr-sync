@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -46,8 +47,150 @@ func processData(content DataContent, config Config) ([]CallEntry, error) {
 		return data, nil
 	} else if content.Type == DataTypeSMDR {
 		// todo handle smdr data format?
+		data, err := processSmdrData(content, config)
+		if err != nil {
+			return data, err
+		}
+		return data, nil
 	}
 	return nil, nil
+}
+
+func processSmdrData(content DataContent, config Config) ([]CallEntry, error) {
+	var calls []CallEntry
+
+	if strings.Contains(content.FilePath, "Calls By Extension") {
+
+		file, err := LoadUsersFromFile(config.ZultysUsersFile)
+		if err != nil {
+			log.Errorf("could not find user? %s", err)
+		}
+
+		// Load previously processed timestamps
+		extensionTimestamps, err := LoadTimestampsFromFile(config.TimestampFile)
+		if err != nil {
+			log.Errorf("unable to get timestamps from file, assuming new: %v", err)
+			extensionTimestamps = make(ExtensionTimestamps)
+		}
+
+		items := strings.Split(content.Content, " ")
+
+		// outbound:
+		// N 001 00 DN1092 TVoiceGroup1001 12/16 09:00:56 00:00:03 4155551212
+		//
+		// inbound:
+		// N 002 00 TVoiceGroup1002 DN1093 12/16 09:01:45 00:00:04 4155551212
+
+		/*state := items[0]
+		recordseq := items[1]
+		custnum := items[2]*/
+		extension_or_trunk := items[3]
+		trunk_or_extension := items[4]
+		date := items[5]
+		date_time := items[6]
+		call_duration := items[7]
+		external_party := items[8]
+
+		/*dialplan := values[6]
+		if strings.Contains(dialplan, "park") {
+			log.Info("skipping over park entry")
+			continue
+		}*/
+
+		var extension string
+		var trunk string
+
+		var direction = INTERNAL
+		if strings.HasPrefix(extension_or_trunk, "DN") {
+			direction = OUTBOUND
+			extension = strings.ReplaceAll(extension_or_trunk, "DN", "")
+			trunk = trunk_or_extension
+		} else if strings.HasPrefix(extension_or_trunk, "T") {
+			direction = INBOUND
+			extension = strings.ReplaceAll(trunk_or_extension, "T", "")
+			trunk = extension_or_trunk
+		}
+
+		if direction == INTERNAL {
+			return nil, nil
+		}
+
+		const dateTimeLayout = "1/2/2006 15:04:05" // Combined layout for parsing both together
+
+		// Combine the date and time strings
+		dateTimeStr := fmt.Sprintf("%s/%d %s", date, time.Now().Year(), date_time)
+
+		location, err := time.LoadLocation(config.TimestampRegion)
+		if err != nil {
+			log.Fatalf("Error loading location: %v\n", err)
+		}
+
+		// Parse the combined date and time string into a time.Time object
+		callTime, err := time.ParseInLocation(dateTimeLayout, dateTimeStr, location)
+		if err != nil {
+			log.Errorf("Error parsing date and time: %v\n", err)
+		}
+
+		// Check if the call is newer than the last processed for this extension
+		lastProcessed, exists := extensionTimestamps[extension]
+		if exists && callTime.Unix() <= lastProcessed {
+			// This call has already been processed, skip it
+			log.Warn("skipping call, due to being already processed?")
+			return nil, nil
+		}
+
+		durationSep := strings.Split(call_duration, ":")
+		duration, err := time.ParseDuration(durationSep[0] + "h" + durationSep[1] + "m" + durationSep[2] + "s")
+		if err != nil {
+			return nil, err
+		}
+
+		// fmt.Println(line)
+
+		caller := extension
+		callee := external_party
+
+		if direction == INBOUND {
+			caller = external_party
+			callee = extension
+		}
+
+		user := FindEntryByExtension(file, extension)
+		if user == nil {
+			log.Error("no user found")
+			user = &ZultysUser{}
+			return nil, errors.New("unable to find matching user in system, skipping")
+		}
+
+		entry := CallEntry{
+			Time:      callTime,
+			Direction: direction,
+			User:      *user, // todo fetch name from zultys api?? we need to cache this somewhere
+			Extension: extension,
+			Duration:  duration,
+			DialPlan:  trunk,
+			Caller:    caller,
+			Callee:    callee,
+		}
+
+		calls = append(calls, entry)
+		extensionTimestamps[extension] = callTime.Unix()
+		// todo process the actual lines?
+
+		/*err = SaveTimestampToFile(config.TimestampFile, oldestTimestamp)
+		if err != nil {
+			log.Error(err)
+			return nil, err
+		}*/
+
+		err = SaveTimestampsToFile(config.TimestampFile, extensionTimestamps)
+		if err != nil {
+			log.Errorf("Error saving updated timestamps: %v", err)
+			return nil, err
+		}
+	}
+
+	return calls, nil
 }
 
 func processFtpData(content DataContent, config Config) ([]CallEntry, error) {

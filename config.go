@@ -7,19 +7,20 @@ import (
 )
 
 type Config struct {
-	MxUsername      string `json:"mx_username"`
-	MxPassword      string `json:"mx_password"`
-	MxAddr          string `json:"mx_addr"`
-	ListenAddr      string `json:"listen_addr"`
-	Mode            string `json:"mode"`
-	FtpUsername     string `json:"ftp_username"`
-	FtpPassword     string `json:"ftp_password"`
-	CrmType         string `json:"crm_type"`
-	CrmAPIKey       string `json:"crm_apikey"`
-	ZultysUsersFile string `json:"zultys_users_file"`
-	CrmUsersFile    string `json:"crm_users_file"`
-	TimestampRegion string `json:"timestamp_region"`
-	TimestampFile   string `json:"timestamp_file"`
+	MxUsername             string   `json:"mx_username"`
+	MxPassword             string   `json:"mx_password"`
+	MxAddr                 string   `json:"mx_addr"`
+	ListenAddr             string   `json:"listen_addr"`
+	Mode                   DataType `json:"mode"`
+	FtpUsername            string   `json:"ftp_username"`
+	FtpPassword            string   `json:"ftp_password"`
+	CrmType                string   `json:"crm_type"`
+	CrmAPIKey              string   `json:"crm_apikey"`
+	ZultysUsersFile        string   `json:"zultys_users_file"`
+	CrmUsersFile           string   `json:"crm_users_file"`
+	TimestampRegion        string   `json:"timestamp_region"`
+	TimestampFile          string   `json:"timestamp_file"`
+	IncludeUnknownCRMUsers bool     `json:"include_unknown_crm_users"`
 }
 
 func loadConfig(configFilePath string) Config {

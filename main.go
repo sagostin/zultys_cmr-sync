@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
+	"fmt"
 	ftpserverlib "github.com/fclairamb/ftpserverlib"
 	"github.com/sagostin/zultys_crm-sync/hubspot"
 	log "github.com/sirupsen/logrus"
+	"net"
 	"os"
 	"regexp"
 	"strconv"
@@ -89,35 +92,65 @@ func main() {
 
 	ch := make(chan DataContent)
 
-	driver := &CustomFtpDriver{
-		Username:   config.FtpUsername,
-		Password:   config.FtpPassword,
-		ListenAddr: config.ListenAddr,
-		DataChan:   ch,
+	if config.Mode == DataTypeFTP {
+		driver := &CustomFtpDriver{
+			Username:   config.FtpUsername,
+			Password:   config.FtpPassword,
+			ListenAddr: config.ListenAddr,
+			DataChan:   ch,
+		}
+
+		// Instantiate the FTP server using our custom driver
+		go func() {
+			log.Infof("loading ftp server thread")
+			server := ftpserverlib.NewFtpServer(driver)
+
+			// Start the server
+			log.Infof("Starting FTP server on %s...", driver.ListenAddr)
+			if err := server.ListenAndServe(); err != nil {
+				log.Fatal("Error starting server: ", err)
+			}
+		}()
+	} else if config.Mode == DataTypeSMDR {
+		go func() {
+			// Listen on the specified port
+			listener, err := net.Listen("tcp", config.ListenAddr)
+			if err != nil {
+				fmt.Println("Error listening:", err.Error())
+				os.Exit(1)
+			}
+			defer func(listener net.Listener) {
+				err := listener.Close()
+				if err != nil {
+					log.Error(err)
+				}
+			}(listener)
+			fmt.Println("Listening for SMDR on " + config.ListenAddr)
+
+			// Accept connections in a loop
+			for {
+				conn, err := listener.Accept()
+				if err != nil {
+					fmt.Println("Error accepting: ", err.Error())
+					os.Exit(1)
+				}
+				fmt.Println("Connection accepted.")
+
+				// Handle connections in a new goroutine.
+				go handleRequest(conn, ch)
+			}
+		}()
 	}
 
-	// Instantiate the FTP server using our custom driver
-	go func() {
-		log.Infof("loading ftp server thread")
-		server := ftpserverlib.NewFtpServer(driver)
-
-		// Start the server
-		log.Infof("Starting FTP server on %s...", driver.ListenAddr)
-		if err := server.ListenAndServe(); err != nil {
-			log.Fatal("Error starting server: ", err)
-		}
-	}()
-
 	for {
-		t := <-driver.DataChan
+		t := <-ch
 		// todo process the lines wether it's from the smdr or ftp upload method
-		data, err := processData(t, config)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-
 		go func() {
+			data, err := processData(t, config)
+			if err != nil {
+				log.Error(err)
+				return
+			}
 			ownerFile, err := LoadOwnersFromFile(config.CrmUsersFile)
 			if err != nil {
 				log.Error(err)
@@ -134,9 +167,12 @@ func main() {
 					if owner == nil {
 						log.Error("could not find owner by first and last name")
 
-						// create empty owner
-						owner = &hubspot.Owner{}
-						//continue
+						if config.IncludeUnknownCRMUsers {
+							// create empty owner
+							owner = &hubspot.Owner{}
+						} else {
+							continue
+						}
 					}
 				}
 
@@ -221,5 +257,47 @@ func main() {
 				}
 			}
 		}()
+	}
+}
+
+// Handles incoming requests
+func handleRequest(conn net.Conn, ch chan DataContent) {
+	defer func(conn net.Conn) {
+		err := conn.Close()
+		if err != nil {
+			log.Error(err)
+		}
+	}(conn)
+
+	// Create a new reader, assuming carriage returns and line feeds as delimiters
+	reader := bufio.NewReader(conn)
+
+	// Read data line by line
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading:", err.Error())
+			break
+		}
+		// Trim the line to remove the delimiter
+		line = strings.Trim(line, "\r\n")
+
+		// Split the line by spaces to get individual fields
+		fields := strings.Split(line, " ")
+
+		// Process the fields (for now, just print them out)
+		fmt.Println(fields)
+
+		ch <- DataContent{
+			FilePath: "SMDR not FILE",
+			Type:     DataTypeSMDR,
+			Content:  line,
+		}
+
+		// Send a response back to the client (optional)
+		_, err = conn.Write([]byte("Received Line\n"))
+		if err != nil {
+			log.Error(err)
+		}
 	}
 }

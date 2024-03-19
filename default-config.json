@@ -3,13 +3,14 @@
   "mx_password": "zultys",
   "mx_addr": "zultys.example.com",
   "listen_addr": "0.0.0.0:92000",
-  "mode": "smdr",
-  "ftp_username": "zultys_cmr-sync",
+  "mode": "ftp",
+  "ftp_username": "zultys_crm-sync",
   "ftp_password": "P@ssw0rd",
   "crm_type": "hubspot",
   "crm_apikey": "apikey_here",
   "zultys_users_file": "./zultys_users.json",
   "crm_users_file": "./crm_users.json",
   "timestamp_region": "America/Chicago",
-  "timestamp_file": "./timestamp.json"
+  "timestamp_file": "./timestamp.json",
+  "include_unknown_crm_users": true
 }

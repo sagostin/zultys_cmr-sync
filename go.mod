@@ -1,4 +1,4 @@
-module hubspot-call_contact
+module github.com/zultys_crm-sync
 
 go 1.21
 

@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"hubspot-call_contact/hubspot"
+	"github.com/zultys_crm-sync/hubspot"
 	"io/ioutil"
 )
 

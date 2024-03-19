@@ -112,7 +112,7 @@ func main() {
 			}
 		}()
 	} else if config.Mode == DataTypeSMDR {
-		go func() {
+		go func(c chan DataContent) {
 			// Listen on the specified port
 			listener, err := net.Listen("tcp", config.ListenAddr)
 			if err != nil {
@@ -137,9 +137,9 @@ func main() {
 				fmt.Println("Connection accepted.")
 
 				// Handle connections in a new goroutine.
-				go handleRequest(conn, ch)
+				go handleRequest(conn, c)
 			}
-		}()
+		}(ch)
 	}
 
 	for {

@@ -59,7 +59,7 @@ func processData(content DataContent, config Config) ([]CallEntry, error) {
 func processSmdrData(content DataContent, config Config) ([]CallEntry, error) {
 	var calls []CallEntry
 
-	if strings.Contains(content.FilePath, "Calls By Extension") {
+	if strings.Contains(content.FilePath, "SMDR not FILE") {
 
 		file, err := LoadUsersFromFile(config.ZultysUsersFile)
 		if err != nil {

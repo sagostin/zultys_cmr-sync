@@ -143,9 +143,9 @@ func main() {
 	}
 
 	for {
-		t := <-ch
+		content := <-ch
 		// todo process the lines wether it's from the smdr or ftp upload method
-		go func() {
+		go func(t DataContent) {
 			data, err := processData(t, config)
 			if err != nil {
 				log.Error(err)
@@ -256,7 +256,7 @@ func main() {
 					// todo create call?? eventually link it to contact as well if one exists...
 				}
 			}
-		}()
+		}(content)
 	}
 }
 

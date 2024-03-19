@@ -1,4 +1,4 @@
-module github.com/zultys_crm-sync
+module github.com/sagostin/zultys_crm-sync
 
 go 1.21
 

@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	ftpserverlib "github.com/fclairamb/ftpserverlib"
+	"github.com/sagostin/zultys_crm-sync/hubspot"
 	log "github.com/sirupsen/logrus"
-	"hubspot-call_contact/hubspot"
 	"os"
 	"regexp"
 	"strconv"

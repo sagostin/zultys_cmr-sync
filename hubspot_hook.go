@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/zultys_crm-sync/hubspot"
+	"github.com/sagostin/zultys_crm-sync/hubspot"
 	"io/ioutil"
 )
 

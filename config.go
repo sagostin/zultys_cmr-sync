@@ -6,6 +6,11 @@ import (
 	"os"
 )
 
+type CrmType string
+
+const ZohoCRM CrmType = "zoho"
+const HubspotCRM CrmType = "hubspot"
+
 type Config struct {
 	MxUsername             string   `json:"mx_username"`
 	MxPassword             string   `json:"mx_password"`
@@ -14,8 +19,8 @@ type Config struct {
 	Mode                   DataType `json:"mode"`
 	FtpUsername            string   `json:"ftp_username"`
 	FtpPassword            string   `json:"ftp_password"`
-	CrmType                string   `json:"crm_type"`
-	CrmAPIKey              string   `json:"crm_apikey"`
+	CrmType                CrmType  `json:"crm_type"`
+	CrmAPIKey              string   `json:"crm_apikey"` // Hubspot API Key, or Zoho CRM API Key (accounts api url:crm api url:client id:client secret:grant token/code)
 	ZultysUsersFile        string   `json:"zultys_users_file"`
 	CrmUsersFile           string   `json:"crm_users_file"`
 	TimestampRegion        string   `json:"timestamp_region"`

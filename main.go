@@ -7,12 +7,14 @@ import (
 	"fmt"
 	ftpserverlib "github.com/fclairamb/ftpserverlib"
 	"github.com/sagostin/zultys_crm-sync/hubspot"
+	"github.com/sagostin/zultys_crm-sync/zoho"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 /*
@@ -56,12 +58,38 @@ func main() {
 	log.Infof("Using configuration file at: %s\n", configPath)
 	config := loadConfig(configPath)
 
+	var zohoClient zoho.Client
+
+	if config.CrmType == ZohoCRM {
+		zohoStrings := strings.Split(config.CrmAPIKey, ":")
+
+		zohoClient = zoho.Client{Endpoints: zoho.Endpoints{
+			AccountAuth: zohoStrings[0],
+			CrmApi:      zohoStrings[1],
+		},
+		}
+
+		err := zohoClient.Authenticate(zohoStrings[2], zohoStrings[3], zohoStrings[4])
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		zohoClient.StartTokenRefresher()
+
+		log.Info("authenticated with zoho")
+	}
+
+	time.Sleep(5 * time.Minute)
+
 	cfg := hubspot.NewClientConfig()
 
 	// Vernon Communications API Key
 	cfg.OAuthToken = config.CrmAPIKey
 
 	c := hubspot.NewClient(cfg)
+
+	// todo periodic refresh/update of the file to always be up to date???
 
 	owners, err := c.Owners().GetOwners()
 	if err != nil {

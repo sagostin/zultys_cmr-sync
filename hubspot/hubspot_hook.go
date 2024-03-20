@@ -1,12 +1,11 @@
-package main
+package hubspot
 
 import (
 	"encoding/json"
-	"github.com/sagostin/zultys_crm-sync/hubspot"
 	"io/ioutil"
 )
 
-func SaveOwnersToFile(users []hubspot.Owner, filename string) error {
+func SaveOwnersToFile(users []Owner, filename string) error {
 	data, err := json.Marshal(users)
 	if err != nil {
 		return err
@@ -14,8 +13,8 @@ func SaveOwnersToFile(users []hubspot.Owner, filename string) error {
 	return ioutil.WriteFile(filename, data, 0644)
 }
 
-func LoadOwnersFromFile(filename string) ([]hubspot.Owner, error) {
-	var contacts []hubspot.Owner
+func LoadOwnersFromFile(filename string) ([]Owner, error) {
+	var contacts []Owner
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -25,7 +24,7 @@ func LoadOwnersFromFile(filename string) ([]hubspot.Owner, error) {
 }
 
 // FindOwnerByEmail searches for an owner by email.
-func FindOwnerByEmail(owners []hubspot.Owner, email string) *hubspot.Owner {
+func FindOwnerByEmail(owners []Owner, email string) *Owner {
 	for _, owner := range owners {
 		if owner.Email == email {
 			return &owner
@@ -35,7 +34,7 @@ func FindOwnerByEmail(owners []hubspot.Owner, email string) *hubspot.Owner {
 }
 
 // FindOwnerByName searches for an owner by first and last name.
-func FindOwnerByName(owners []hubspot.Owner, firstName, lastName string) *hubspot.Owner {
+func FindOwnerByName(owners []Owner, firstName, lastName string) *Owner {
 	for _, owner := range owners {
 		if owner.FirstName == firstName && owner.LastName == lastName {
 			return &owner

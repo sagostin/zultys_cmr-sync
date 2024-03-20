@@ -14,7 +14,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
 
 /*
@@ -60,6 +59,18 @@ func main() {
 
 	var zohoClient zoho.Client
 
+	users, err := getZultysUsers(config)
+	if err != nil {
+		log.Error(err)
+	}
+
+	err = SaveUsersToFile(users, config.ZultysUsersFile)
+	if err != nil {
+		return
+	}
+
+	var c hubspot.Client
+
 	if config.CrmType == ZohoCRM {
 		zohoStrings := strings.Split(config.CrmAPIKey, ":")
 
@@ -67,6 +78,7 @@ func main() {
 			AccountAuth: zohoStrings[0],
 			CrmApi:      zohoStrings[1],
 		},
+			Auth: zoho.AccessGrant{},
 		}
 
 		err := zohoClient.Authenticate(zohoStrings[2], zohoStrings[3], zohoStrings[4])
@@ -78,37 +90,26 @@ func main() {
 		zohoClient.StartTokenRefresher()
 
 		log.Info("authenticated with zoho")
-	}
+	} else if config.CrmType == HubspotCRM {
 
-	time.Sleep(5 * time.Minute)
+		cfg := hubspot.NewClientConfig()
 
-	cfg := hubspot.NewClientConfig()
+		// Vernon Communications API Key
+		cfg.OAuthToken = config.CrmAPIKey
 
-	// Vernon Communications API Key
-	cfg.OAuthToken = config.CrmAPIKey
+		c := hubspot.NewClient(cfg)
 
-	c := hubspot.NewClient(cfg)
+		// todo periodic refresh/update of the file to always be up to date???
 
-	// todo periodic refresh/update of the file to always be up to date???
+		owners, err := c.Owners().GetOwners()
+		if err != nil {
+			log.Error(err)
+		}
 
-	owners, err := c.Owners().GetOwners()
-	if err != nil {
-		log.Error(err)
-	}
-
-	err = SaveOwnersToFile(owners.Results, config.CrmUsersFile)
-	if err != nil {
-		log.Error(err)
-	}
-
-	users, err := getZultysUsers(config)
-	if err != nil {
-		log.Error(err)
-	}
-
-	err = SaveUsersToFile(users, config.ZultysUsersFile)
-	if err != nil {
-		return
+		err = hubspot.SaveOwnersToFile(owners.Results, config.CrmUsersFile)
+		if err != nil {
+			log.Error(err)
+		}
 	}
 
 	// fmt.Println(string(marshal))
@@ -179,7 +180,7 @@ func main() {
 				log.Error(err)
 				return
 			}
-			ownerFile, err := LoadOwnersFromFile(config.CrmUsersFile)
+			ownerFile, err := hubspot.LoadOwnersFromFile(config.CrmUsersFile)
 			if err != nil {
 				log.Error(err)
 				return
@@ -187,11 +188,11 @@ func main() {
 
 			for _, d := range data {
 				log.Infof("%s", d)
-				owner := FindOwnerByEmail(ownerFile, d.User.Email)
+				owner := hubspot.FindOwnerByEmail(ownerFile, d.User.Email)
 				if owner == nil {
 					log.Error("could not find owner by email")
 
-					owner = FindOwnerByName(ownerFile, d.User.FirstName, d.User.LastName)
+					owner = hubspot.FindOwnerByName(ownerFile, d.User.FirstName, d.User.LastName)
 					if owner == nil {
 						log.Error("could not find owner by first and last name")
 

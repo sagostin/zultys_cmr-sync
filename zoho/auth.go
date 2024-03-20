@@ -76,15 +76,15 @@ func (c *Client) Authenticate(clientId, clientSecret, grantCode string) error {
 	// For now, just log the body
 	log.Printf("Authenticate response: %s", body)
 
-	//var auth AccessGrant
+	var auth AccessGrant
 
-	err = json.Unmarshal(body, &c.Auth)
+	err = json.Unmarshal(body, &auth)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
 
-	//c.Auth = auth
+	c.Auth = auth
 
 	log.Println("Authentication successful, token acquired and refresher started.")
 
@@ -164,11 +164,16 @@ func (c *Client) refreshAccessToken() error {
 	// For now, just log the body
 	log.Printf("Authenticate response: %s", body)
 
-	err = json.Unmarshal(body, &c.Auth)
+	var auth AccessGrant
+
+	err = json.Unmarshal(body, &auth)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
+
+	// todo maybe this updates properly?
+	c.Auth.AccessToken = auth.AccessToken
 
 	// Log the successful refresh
 	fmt.Printf("Successfully refreshed token. New access token: %s\n", c.Auth.AccessToken)

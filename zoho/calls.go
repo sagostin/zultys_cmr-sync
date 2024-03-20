@@ -60,3 +60,8 @@ type CallsResponse struct {
 		MoreRecords       bool        `json:"more_records"`
 	} `json:"info"`
 }
+
+// https://crm.zohocloud.ca/crm/v6/Calls?fields=
+// Who_Id,What_Id,Call_Type,Outgoing_Call_Status,Call_Start_Time,Call_Duration,Owner,Dialled_Number,Subject,Caller_ID,
+// Created_By,Modified_By,Created_Time,Modified_Time,Reminder,Voice_Recording__s,Call_Duration_in_seconds,Scheduled_In_CRM,
+// CTI_Entry,Tag,id,Call_Purpose,Call_Agenda,Call_Result,Description

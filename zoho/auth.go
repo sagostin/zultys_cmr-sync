@@ -30,6 +30,8 @@ type AccessGrant struct {
 	TokenType    string `json:"token_type,omitempty"`
 }
 
+// get endpoint fields: https://www.zoho.com/crm/help/api/getfields.html
+
 type Client struct {
 	Auth      AccessGrant `json:"auth"`
 	Endpoints Endpoints   `json:"endpoints"`

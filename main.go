@@ -89,6 +89,14 @@ func main() {
 		zohoClient.StartTokenRefresher()
 
 		log.Info("authenticated with zoho")
+
+		fetchUsers, err := zohoClient.FetchUsers()
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		err = zoho.SaveUsersToFile(fetchUsers.Users, config.CrmUsersFile)
 	} else if config.CrmType == HubspotCRM {
 
 		cfg := hubspot.NewClientConfig()

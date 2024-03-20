@@ -107,7 +107,7 @@ func processSmdrData(content DataContent, config Config) ([]CallEntry, error) {
 			trunk = trunk_or_extension
 		} else if strings.HasPrefix(extension_or_trunk, "T") {
 			direction = INBOUND
-			extension = strings.ReplaceAll(trunk_or_extension, "T", "")
+			extension = strings.ReplaceAll(trunk_or_extension, "DN", "")
 			trunk = extension_or_trunk
 		}
 

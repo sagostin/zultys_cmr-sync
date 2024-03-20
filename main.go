@@ -17,7 +17,6 @@ import (
 )
 
 /*
-
 - Start with running local FTP server and/or SMDR receiver server.
 - Provide json configuration for the following:
 	- MX Hostname

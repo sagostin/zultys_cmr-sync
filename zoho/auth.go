@@ -84,7 +84,13 @@ func (c *Client) Authenticate(clientId, clientSecret, grantCode string) error {
 		return err
 	}
 
+	if auth.AccessToken == "" {
+		return fmt.Errorf("failed to authenticate: %s", body)
+	}
+
 	c.Auth = auth
+	c.Auth.ClientId = clientId
+	c.Auth.ClientSecret = clientSecret
 
 	log.Println("Authentication successful, token acquired and refresher started.")
 
@@ -95,7 +101,8 @@ func (c *Client) StartTokenRefresher() {
 	// Calculate the duration to wait before refreshing the token
 	// For example, if the token expires in 3600 seconds, you might want to refresh after 3500 seconds
 
-	waitDuration := c.Auth.ExpiryTime - 100
+	waitDuration := c.Auth.ExpiryTime / 2
+	// waitDuration := 15
 
 	// Start a new goroutine to handle the refreshing
 	go func() {
@@ -172,11 +179,15 @@ func (c *Client) refreshAccessToken() error {
 		return err
 	}
 
+	if auth.AccessToken == "" {
+		return fmt.Errorf("failed to authenticate: %s", body)
+	}
+
 	// todo maybe this updates properly?
 	c.Auth.AccessToken = auth.AccessToken
 
 	// Log the successful refresh
-	fmt.Printf("Successfully refreshed token. New access token: %s\n", c.Auth.AccessToken)
+	log.Printf("Successfully refreshed token. New access token: %s\n", c.Auth.AccessToken)
 
 	return nil
 }

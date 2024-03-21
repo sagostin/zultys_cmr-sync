@@ -252,6 +252,7 @@ func handleZoho(c *zoho.Client, config Config, data []CallEntry) {
 
 		// todo account for multiple contacts?
 		if len(contact.Data) > 0 {
+			WhoId = &zoho.ItemLink{}
 			WhoId.Id = contact.Data[0].Id
 		} else {
 			log.Error("failed to find contact by phone")
@@ -266,6 +267,7 @@ func handleZoho(c *zoho.Client, config Config, data []CallEntry) {
 
 		// todo account for multiple accounts?
 		if len(account.Data) > 0 {
+			WhatId = &zoho.ItemLink{}
 			WhatId.Id = account.Data[0].Id
 		} else {
 			log.Error("failed to find account by phone")

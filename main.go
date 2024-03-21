@@ -225,11 +225,14 @@ func handleZoho(c *zoho.Client, config Config, data []CallEntry) {
 
 		log.Infof("found owner %s %s", owner.Email, owner.Id)
 
+		callStatus := "Completed"
+
 		var phoneLookupNum string
 		if d.Direction == OUTBOUND {
 			phoneLookupNum = d.Callee
 		} else if d.Direction == INBOUND {
 			phoneLookupNum = d.Caller
+			callStatus = ""
 		}
 
 		/*match10Digit, _ := regexp.MatchString("^(\\d{10})$", phoneLookupNum)
@@ -291,7 +294,7 @@ func handleZoho(c *zoho.Client, config Config, data []CallEntry) {
 			CallDuration:          durationStr,
 			Description:           "Imported from Zultys",
 			CallPurpose:           "-None-",
-			OutgoingCallStatus:    "Completed",
+			OutgoingCallStatus:    callStatus,
 			CallStartTime:         d.Time,
 			Subject:               "Call from " + d.Caller + " to " + d.Callee,
 			SeModule:              "Accounts",

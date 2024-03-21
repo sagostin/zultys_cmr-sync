@@ -281,8 +281,7 @@ func handleZoho(c *zoho.Client, config Config, data []CallEntry) {
 		var ownerID *zoho.Owner
 
 		if owner != nil && owner.Id != "" {
-			ownerID = &zoho.Owner{}
-			ownerID.Id = owner.Id
+			ownerID = &zoho.Owner{Id: owner.Id}
 		}
 
 		var call zoho.Call

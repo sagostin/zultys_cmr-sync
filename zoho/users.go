@@ -54,11 +54,11 @@ func (c *Client) FetchUsers() (UsersResponse, error) {
 	var usersResponse UsersResponse
 
 	// Make sure we have a valid access token
-	if c.Auth.AccessToken == "" {
+	/*if c.Auth.AccessToken == "" {
 		if err := c.refreshAccessToken(); err != nil {
 			return usersResponse, fmt.Errorf("failed to refresh access token: %v", err)
 		}
-	}
+	}*/
 
 	// Construct the GET request to fetch users
 	req, err := http.NewRequest("GET", "https://"+c.Endpoints.CrmApi+"/crm/v6/users", nil)

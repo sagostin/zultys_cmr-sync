@@ -1,8 +1,105 @@
 package zoho
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	log "github.com/sirupsen/logrus"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"time"
+)
 
-type AccountResponse struct {
+type Account struct {
+	Owner struct {
+		Name  string `json:"name"`
+		Id    string `json:"id"`
+		Email string `json:"email"`
+	} `json:"Owner"`
+	CurrencySymbol    string      `json:"$currency_symbol"`
+	FieldStates       interface{} `json:"$field_states"`
+	AccountType       string      `json:"Account_Type"`
+	SICCode           interface{} `json:"SIC_Code"`
+	SharingPermission string      `json:"$sharing_permission"`
+	LastActivityTime  time.Time   `json:"Last_Activity_Time"`
+	Industry          string      `json:"Industry"`
+	AccountSite       interface{} `json:"Account_Site"`
+	ProcessFlow       bool        `json:"$process_flow"`
+	BillingCountry    string      `json:"Billing_Country"`
+	LockedForMe       bool        `json:"$locked_for_me"`
+	Id                string      `json:"id"`
+	Approval          struct {
+		Delegate bool `json:"delegate"`
+		Approve  bool `json:"approve"`
+		Reject   bool `json:"reject"`
+		Resubmit bool `json:"resubmit"`
+	} `json:"$approval"`
+	BillingStreet        string      `json:"Billing_Street"`
+	CreatedTime          time.Time   `json:"Created_Time"`
+	WizardConnectionPath interface{} `json:"$wizard_connection_path"`
+	Editable             bool        `json:"$editable"`
+	BillingCode          string      `json:"Billing_Code"`
+	ShippingCity         interface{} `json:"Shipping_City"`
+	ShippingCountry      interface{} `json:"Shipping_Country"`
+	ShippingCode         interface{} `json:"Shipping_Code"`
+	BillingCity          string      `json:"Billing_City"`
+	CreatedBy            struct {
+		Name  string `json:"name"`
+		Id    string `json:"id"`
+		Email string `json:"email"`
+	} `json:"Created_By"`
+	ZiaOwnerAssignment string      `json:"$zia_owner_assignment"`
+	AnnualRevenue      int         `json:"Annual_Revenue"`
+	ShippingStreet     interface{} `json:"Shipping_Street"`
+	Ownership          string      `json:"Ownership"`
+	Description        string      `json:"Description"`
+	Rating             interface{} `json:"Rating"`
+	ShippingState      interface{} `json:"Shipping_State"`
+	ReviewProcess      struct {
+		Approve  bool `json:"approve"`
+		Reject   bool `json:"reject"`
+		Resubmit bool `json:"resubmit"`
+	} `json:"$review_process"`
+	Website     string `json:"Website"`
+	Employees   int    `json:"Employees"`
+	RecordImage string `json:"Record_Image"`
+	ModifiedBy  struct {
+		Name  string `json:"name"`
+		Id    string `json:"id"`
+		Email string `json:"email"`
+	} `json:"Modified_By"`
+	Review        interface{}   `json:"$review"`
+	Phone         string        `json:"Phone"`
+	AccountName   string        `json:"Account_Name"`
+	ZiaVisions    interface{}   `json:"$zia_visions"`
+	AccountNumber string        `json:"Account_Number"`
+	TickerSymbol  interface{}   `json:"Ticker_Symbol"`
+	ModifiedTime  time.Time     `json:"Modified_Time"`
+	RecordStatusS string        `json:"Record_Status__s"`
+	Orchestration bool          `json:"$orchestration"`
+	ParentAccount interface{}   `json:"Parent_Account"`
+	InMerge       bool          `json:"$in_merge"`
+	LockedS       bool          `json:"Locked__s"`
+	BillingState  string        `json:"Billing_State"`
+	Tag           []interface{} `json:"Tag"`
+	Fax           interface{}   `json:"Fax"`
+	ApprovalState string        `json:"$approval_state"`
+	Pathfinder    bool          `json:"$pathfinder"`
+}
+
+type AccountSearchResponse struct {
+	Data []Account `json:"data"`
+	Info struct {
+		PerPage     int    `json:"per_page"`
+		Count       int    `json:"count"`
+		SortBy      string `json:"sort_by"`
+		Page        int    `json:"page"`
+		SortOrder   string `json:"sort_order"`
+		MoreRecords bool   `json:"more_records"`
+	} `json:"info"`
+}
+
+/*type AccountResponse struct {
 	Fields []struct {
 		AssociatedModule interface{} `json:"associated_module"`
 		Webhook          bool        `json:"webhook"`
@@ -107,7 +204,7 @@ type AccountResponse struct {
 			Type string `json:"type"`
 		} `json:"textarea,omitempty"`
 	} `json:"fields"`
-}
+}*/
 
 // endpoint: https://crm.zohocloud.ca/crm/v6/Contacts?fields=
 // Owner,Rating,Account_Name,Phone,Account_Site,Fax,Parent_Account,
@@ -118,3 +215,40 @@ type AccountResponse struct {
 // Locked__s,Billing_Street,Shipping_Street,Billing_City,Shipping_City,
 // Billing_State,Shipping_State,Billing_Code,Shipping_Code,Billing_Country,
 // Shipping_Country,Description,Record_Image
+
+func (c *Client) FindAccountByPhone(phone string) (AccountSearchResponse, error) {
+	var accountResponse AccountSearchResponse
+
+	// Construct the GET request to fetch contacts
+	req, err := http.NewRequest("GET", "https://"+c.Endpoints.CrmApi+"/crm/v6/Accounts/search?phone="+phone+"", nil)
+	if err != nil {
+		return accountResponse, fmt.Errorf("failed to create request: %v", err)
+	}
+	req.Header.Add("Authorization", "Zoho-oauthtoken "+c.Auth.AccessToken)
+
+	// Send the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return accountResponse, fmt.Errorf("failed to send request: %v", err)
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Error(err)
+		}
+	}(resp.Body)
+
+	// Read the response
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return accountResponse, fmt.Errorf("failed to read response: %v", err)
+	}
+
+	// Unmarshal the response
+	if err := json.Unmarshal(body, &accountResponse); err != nil {
+		return accountResponse, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
+
+	return accountResponse, nil
+}

@@ -173,7 +173,7 @@ func main() {
 				fmt.Println("Connection accepted.")
 
 				// Handle connections in a new goroutine.
-				go handleRequest(conn, c)
+				go handleSmdrRequest(conn, c)
 			}
 		}(ch)
 	}
@@ -187,117 +187,242 @@ func main() {
 				log.Error(err)
 				return
 			}
-			ownerFile, err := hubspot.LoadOwnersFromFile(config.CrmUsersFile)
-			if err != nil {
-				log.Error(err)
-				return
-			}
 
-			for _, d := range data {
-				log.Infof("%s", d)
-				owner := hubspot.FindOwnerByEmail(ownerFile, d.User.Email)
-				if owner == nil {
-					log.Error("could not find owner by email")
-
-					owner = hubspot.FindOwnerByName(ownerFile, d.User.FirstName, d.User.LastName)
-					if owner == nil {
-						log.Error("could not find owner by first and last name")
-
-						if config.IncludeUnknownCRMUsers {
-							// create empty owner
-							owner = &hubspot.Owner{}
-						} else {
-							continue
-						}
-					}
-				}
-
-				log.Infof("found owner %s %s", owner.Email, owner.Id)
-
-				// todo associate the call with companies & contacts??
-
-				testCall := hubspot.CallProperties{
-					HsTimestamp:       d.Time,
-					HsCallBody:        "Call imported from Zultys",
-					HsCallDirection:   strings.ToUpper(string(d.Direction)),
-					HsCallDisposition: "Connected",
-					HsCallDuration:    strconv.FormatInt(d.Duration.Milliseconds(), 10),
-					HsCallFromNumber:  d.Caller,
-					HsCallStatus:      "COMPLETED",
-					HsCallToNumber:    d.Callee,
-					HsCallTitle:       "Call from " + d.Caller + " to " + d.Callee,
-					HubspotOwnerId:    owner.Id,
-				}
-
-				marshal, err := json.Marshal(testCall)
-				if err != nil {
-					return
-				}
-
-				println(string(marshal))
-
-				callResult, err := c.Calls().CreateCall(testCall)
-				if err != nil {
-					log.Error(err)
-					continue
-				}
-
-				/*_, err = c.Calls().GetAllCalls()
-				if err != nil {
-					return
-				}*/
-
-				/*call, err := c.Calls().GetCall(callResult.Id)
-				if err != nil {
-					log.Error(err)
-				}*/
-
-				var phoneLookupNum string
-				if d.Direction == OUTBOUND {
-					phoneLookupNum = d.Callee
-				} else if d.Direction == INBOUND {
-					phoneLookupNum = d.Caller
-				}
-
-				match10Digit, _ := regexp.MatchString("^(\\d{10})$", phoneLookupNum)
-				match11Digit, _ := regexp.MatchString("^(1\\d{10})$", phoneLookupNum)
-				if match10Digit {
-					phoneLookupNum = "+1" + phoneLookupNum
-				} else if match11Digit {
-					phoneLookupNum = "+" + phoneLookupNum
-				}
-
-				companies, err := c.Companies().SearchByPhone(phoneLookupNum)
-				if err != nil {
-					log.Error(err)
-				}
-
-				for _, companyP := range companies.Results {
-					err = c.Calls().AssociateCallCompany(*callResult, companyP.Id, 182)
-					if err != nil {
-						log.Warn(err)
-					}
-				}
-
-				phoneContact, err := c.Contacts().SearchByPhone(phoneLookupNum)
-				if err != nil {
-					log.Error(err)
-				}
-
-				for _, contactP := range phoneContact.Results {
-					err = c.Calls().AssociateCallContact(*callResult, contactP, 194)
-					if err != nil {
-						log.Warn(err)
-					}
-					// todo create call?? eventually link it to contact as well if one exists...
-				}
+			if config.CrmType == ZohoCRM {
+				handleZoho(&zohoClient, config, data)
+			} else if config.CrmType == HubspotCRM {
+				handleHubspot(c, config, data)
 			}
 		}(content)
 	}
 }
 
+func handleZoho(c *zoho.Client, config Config, data []CallEntry) {
+	// todo
+	ownerFile, err := zoho.LoadUsersFromFile(config.CrmUsersFile)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	for _, d := range data {
+		log.Infof("%s", d)
+		owner := zoho.FindUserByEmail(ownerFile, d.User.Email)
+		if owner == nil {
+			log.Error("could not find owner by email")
+
+			owner = zoho.FindUserByName(ownerFile, d.User.FirstName, d.User.LastName)
+			if owner == nil {
+				log.Error("could not find owner by first and last name")
+
+				if config.IncludeUnknownCRMUsers {
+					// create empty owner
+					owner = &zoho.User{}
+				} else {
+					continue
+				}
+			}
+		}
+
+		log.Infof("found owner %s %s", owner.Email, owner.Id)
+
+		var phoneLookupNum string
+		if d.Direction == OUTBOUND {
+			phoneLookupNum = d.Callee
+		} else if d.Direction == INBOUND {
+			phoneLookupNum = d.Caller
+		}
+
+		/*match10Digit, _ := regexp.MatchString("^(\\d{10})$", phoneLookupNum)
+		match11Digit, _ := regexp.MatchString("^(1\\d{10})$", phoneLookupNum)
+		if match10Digit {
+			phoneLookupNum = "+1" + phoneLookupNum
+		} else if match11Digit {
+			phoneLookupNum = "+" + phoneLookupNum
+		}*/
+
+		var WhoId *zoho.ItemLink
+
+		contact, err := c.FindContactByPhone(phoneLookupNum)
+		if err != nil {
+			log.Errorf("error finding contact by phone: %s", err.Error())
+		}
+
+		// todo account for multiple contacts?
+		if len(contact.Data) > 0 {
+			WhoId.Id = contact.Data[0].Id
+		} else {
+			log.Error("failed to find contact by phone")
+		}
+
+		var WhatId *zoho.ItemLink
+
+		account, err := c.FindAccountByPhone(phoneLookupNum)
+		if err != nil {
+			log.Errorf("error finding account by phone: %s", err.Error())
+		}
+
+		// todo account for multiple accounts?
+		if len(account.Data) > 0 {
+			WhatId.Id = account.Data[0].Id
+		} else {
+			log.Error("failed to find account by phone")
+		}
+
+		// Convert the duration to total seconds for ease of calculation
+		totalSeconds := int(d.Duration.Seconds())
+
+		// Calculate minutes and seconds
+		minutes := totalSeconds / 60
+		seconds := totalSeconds % 60
+
+		// Format the string into mm:ss format
+		durationStr := fmt.Sprintf("%02d:%02d", minutes, seconds)
+
+		var ownerID *zoho.Owner
+
+		if owner.Id != "" {
+			ownerID.Id = owner.Id
+		}
+
+		var call zoho.Call
+
+		call = zoho.Call{
+			Owner:                 ownerID,
+			CallDuration:          durationStr,
+			Description:           "Imported from Zultys",
+			CallPurpose:           "-None-",
+			OutgoingCallStatus:    "Completed",
+			CallStartTime:         d.Time,
+			Subject:               "Call from " + d.Caller + " to " + d.Callee,
+			SeModule:              "Accounts",
+			CallType:              string(d.Direction),
+			WhatId:                WhatId,
+			WhoId:                 WhoId,
+			CallDurationInSeconds: d.Duration.Seconds(),
+			CreatedBy:             ownerID,
+			ModifiedBy:            ownerID,
+		}
+
+		marshal, err := json.Marshal(call)
+		if err != nil {
+			log.Error(err)
+		}
+
+		println(string(marshal))
+
+		var calls []zoho.Call
+		calls = append(calls, call)
+
+		err = c.CreateCall(calls)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+	}
+}
+
+func handleHubspot(c hubspot.Client, config Config, data []CallEntry) {
+	// todo
+	ownerFile, err := hubspot.LoadOwnersFromFile(config.CrmUsersFile)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	for _, d := range data {
+		log.Infof("%s", d)
+		owner := hubspot.FindOwnerByEmail(ownerFile, d.User.Email)
+		if owner == nil {
+			log.Error("could not find owner by email")
+
+			owner = hubspot.FindOwnerByName(ownerFile, d.User.FirstName, d.User.LastName)
+			if owner == nil {
+				log.Error("could not find owner by first and last name")
+
+				if config.IncludeUnknownCRMUsers {
+					// create empty owner
+					owner = &hubspot.Owner{}
+				} else {
+					continue
+				}
+			}
+		}
+
+		log.Infof("found owner %s %s", owner.Email, owner.Id)
+
+		// todo associate the call with companies & contacts??
+
+		testCall := hubspot.CallProperties{
+			HsTimestamp:       d.Time,
+			HsCallBody:        "Call imported from Zultys",
+			HsCallDirection:   strings.ToUpper(string(d.Direction)),
+			HsCallDisposition: "Connected",
+			HsCallDuration:    strconv.FormatInt(d.Duration.Milliseconds(), 10),
+			HsCallFromNumber:  d.Caller,
+			HsCallStatus:      "COMPLETED",
+			HsCallToNumber:    d.Callee,
+			HsCallTitle:       "Call from " + d.Caller + " to " + d.Callee,
+			HubspotOwnerId:    owner.Id,
+		}
+
+		marshal, err := json.Marshal(testCall)
+		if err != nil {
+			return
+		}
+
+		println(string(marshal))
+
+		callResult, err := c.Calls().CreateCall(testCall)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		var phoneLookupNum string
+		if d.Direction == OUTBOUND {
+			phoneLookupNum = d.Callee
+		} else if d.Direction == INBOUND {
+			phoneLookupNum = d.Caller
+		}
+
+		match10Digit, _ := regexp.MatchString("^(\\d{10})$", phoneLookupNum)
+		match11Digit, _ := regexp.MatchString("^(1\\d{10})$", phoneLookupNum)
+		if match10Digit {
+			phoneLookupNum = "+1" + phoneLookupNum
+		} else if match11Digit {
+			phoneLookupNum = "+" + phoneLookupNum
+		}
+
+		companies, err := c.Companies().SearchByPhone(phoneLookupNum)
+		if err != nil {
+			log.Error(err)
+		}
+
+		for _, companyP := range companies.Results {
+			err = c.Calls().AssociateCallCompany(*callResult, companyP.Id, 182)
+			if err != nil {
+				log.Warn(err)
+			}
+		}
+
+		phoneContact, err := c.Contacts().SearchByPhone(phoneLookupNum)
+		if err != nil {
+			log.Error(err)
+		}
+
+		for _, contactP := range phoneContact.Results {
+			err = c.Calls().AssociateCallContact(*callResult, contactP, 194)
+			if err != nil {
+				log.Warn(err)
+			}
+			// todo create call?? eventually link it to contact as well if one exists...
+		}
+	}
+}
+
 // Handles incoming requests
-func handleRequest(conn net.Conn, ch chan DataContent) {
+func handleSmdrRequest(conn net.Conn, ch chan DataContent) {
 	defer func(conn net.Conn) {
 		err := conn.Close()
 		if err != nil {

@@ -56,8 +56,6 @@ func main() {
 	log.Infof("Using configuration file at: %s\n", configPath)
 	config := loadConfig(configPath)
 
-	var zohoClient zoho.Client
-
 	users, err := getZultysUsers(config)
 	if err != nil {
 		log.Error(err)
@@ -69,6 +67,7 @@ func main() {
 	}
 
 	var c hubspot.Client
+	var zohoClient zoho.Client
 
 	if config.CrmType == ZohoCRM {
 		zohoStrings := strings.Split(config.CrmAPIKey, ":")
@@ -104,7 +103,7 @@ func main() {
 		// Vernon Communications API Key
 		cfg.OAuthToken = config.CrmAPIKey
 
-		c := hubspot.NewClient(cfg)
+		c = hubspot.NewClient(cfg)
 
 		// todo periodic refresh/update of the file to always be up to date???
 
@@ -181,7 +180,7 @@ func main() {
 	for {
 		content := <-ch
 		// todo process the lines wether it's from the smdr or ftp upload method
-		go func(t DataContent) {
+		go func(t DataContent, zc *zoho.Client, hsc *hubspot.Client) {
 			data, err := processData(t, config)
 			if err != nil {
 				log.Error(err)
@@ -189,11 +188,11 @@ func main() {
 			}
 
 			if config.CrmType == ZohoCRM {
-				handleZoho(&zohoClient, config, data)
+				handleZoho(zc, config, data)
 			} else if config.CrmType == HubspotCRM {
-				handleHubspot(c, config, data)
+				handleHubspot(&c, config, data)
 			}
-		}(content)
+		}(content, &zohoClient, &c)
 	}
 }
 
@@ -322,7 +321,7 @@ func handleZoho(c *zoho.Client, config Config, data []CallEntry) {
 	}
 }
 
-func handleHubspot(c hubspot.Client, config Config, data []CallEntry) {
+func handleHubspot(c *hubspot.Client, config Config, data []CallEntry) {
 	// todo
 	ownerFile, err := hubspot.LoadOwnersFromFile(config.CrmUsersFile)
 	if err != nil {

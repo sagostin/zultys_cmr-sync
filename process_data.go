@@ -81,6 +81,10 @@ func processSmdrData(content DataContent, config Config) ([]CallEntry, error) {
 		// inbound:
 		// N 002 00 TVoiceGroup1002 DN1093 12/16 09:01:45 00:00:04 4155551212
 
+		if len(items) < 9 || len(items) > 9 {
+			return nil, errors.New("invalid data format")
+		}
+
 		/*state := items[0]
 		recordseq := items[1]
 		custnum := items[2]*/
